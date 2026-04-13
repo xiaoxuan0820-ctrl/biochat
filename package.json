@@ -1,6 +1,6 @@
 {
   "name": "biochat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Elegant Desktop Client based on DeerFlow 2.0",
   "main": "src/main/index.js",
   "author": "Biocherry <biocherry100@coze.email>",
@@ -8,6 +8,8 @@
   "scripts": {
     "start": "electron .",
     "build:mac": "electron-builder --mac",
+    "build:mac-arm": "electron-builder --mac dmg --arm64",
+    "build:mac-x64": "electron-builder --mac dmg --x64",
     "build:win": "electron-builder --win"
   },
   "dependencies": {},
@@ -27,10 +29,24 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": [{ "target": "dmg", "arch": ["x64"] }]
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "dmg": {
+      "writeUpdateInfo": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
