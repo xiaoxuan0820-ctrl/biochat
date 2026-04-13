@@ -1,16 +1,273 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:*">
-    <title>Biochat</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./main.tsx"></script>
-  </body>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biochat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #111118;
+      --bg-tertiary: #1a1a24;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --accent: #8b5cf6;
+      --accent-hover: #a78bfa;
+      --border: #252530;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f1a 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      text-align: center;
+      padding: 40px;
+      max-width: 600px;
+    }
+    .logo {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 50px;
+      margin: 0 auto 28px;
+      box-shadow: 0 20px 50px rgba(139, 92, 246, 0.25);
+    }
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+      font-size: 16px;
+    }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--error);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.running { background: var(--success); animation: none; }
+    .status-dot.starting { background: var(--warning); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .status-text { font-size: 15px; font-weight: 500; }
+    
+    .btn {
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      margin: 6px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+    }
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .info-item {
+      background: var(--bg-tertiary);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .info-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .info-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🦌</div>
+    <h1>Biochat</h1>
+    <p class="subtitle">基于 DeerFlow 2.0 的优雅桌面客户端</p>
+    
+    <div class="card">
+      <div class="status-row">
+        <div class="status-item">
+          <div class="status-dot" id="dockerDot"></div>
+          <span class="status-text">Docker</span>
+        </div>
+        <div class="status-item">
+          <div class="status-dot" id="serviceDot"></div>
+          <span class="status-text" id="serviceStatus">检测中...</span>
+        </div>
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn btn-primary" id="startBtn" disabled>启动服务</button>
+        <button class="btn btn-secondary" id="openBtn" disabled>打开 DeerFlow</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3 style="margin-bottom: 16px; font-size: 16px;">快速开始</h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-value">1</div>
+          <div class="info-label">安装 DeerFlow</div>
+        </div>
+        <div class="info-item">
+          <div class="info-value">2</div>
+          <div class="info-label">启动 Docker</div>
+        </div>
+        <div class="info-item">
+          <div class="info-value">3</div>
+          <div class="info-label">点击启动服务</div>
+        </div>
+        <div class="info-item">
+          <div class="info-value">4</div>
+          <div class="info-label">开始使用</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>DeerFlow 2.0 · <a href="#" id="githubLink">GitHub</a></p>
+    </div>
+  </div>
+
+  <script>
+    const dockerDot = document.getElementById('dockerDot');
+    const serviceDot = document.getElementById('serviceDot');
+    const serviceStatus = document.getElementById('serviceStatus');
+    const startBtn = document.getElementById('startBtn');
+    const openBtn = document.getElementById('openBtn');
+    const githubLink = document.getElementById('githubLink');
+    
+    let isRunning = false;
+    let isDockerRunning = false;
+    
+    async function checkStatus() {
+      isDockerRunning = await window.electronAPI.checkDocker();
+      isRunning = await window.electronAPI.checkService();
+      
+      dockerDot.className = 'status-dot' + (isDockerRunning ? ' running' : '');
+      serviceDot.className = 'status-dot' + (isRunning ? ' running' : ' starting');
+      serviceStatus.textContent = isRunning ? '运行中' : '未运行';
+      
+      startBtn.disabled = !isDockerRunning;
+      startBtn.textContent = isRunning ? '停止服务' : '启动服务';
+      openBtn.disabled = !isRunning;
+    }
+    
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      startBtn.textContent = '处理中...';
+      
+      // 这里需要用户配置 DeerFlow 路径
+      const deerflowPath = '~/deer-flow'; // 默认路径
+      
+      if (isRunning) {
+        await window.electronAPI.stopDeerflow(deerflowPath);
+      } else {
+        await window.electronAPI.startDeerflow(deerflowPath);
+      }
+      
+      setTimeout(checkStatus, 2000);
+    });
+    
+    openBtn.addEventListener('click', () => {
+      window.electronAPI.openExternal('http://localhost:2026');
+    });
+    
+    githubLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.electronAPI.openExternal('https://github.com/bytedance/deer-flow');
+    });
+    
+    checkStatus();
+    setInterval(checkStatus, 5000);
+  </script>
+</body>
 </html>
