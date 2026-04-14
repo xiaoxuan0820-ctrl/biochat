@@ -1,21 +1,46 @@
 {
   "name": "biochat",
-  "version": "1.0.1",
-  "description": "Elegant Desktop Client based on DeerFlow 2.0",
-  "main": "src/main/index.js",
-  "author": "Biocherry <biocherry100@coze.email>",
+  "version": "1.1.0",
+  "description": "A modern AI chat desktop client built with Electron and React",
+  "main": "dist-electron/main/index.js",
+  "author": "xiaoxuan0820-ctrl",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
-    "build:mac": "electron-builder --mac",
-    "build:mac-arm": "electron-builder --mac dmg --arm64",
-    "build:mac-x64": "electron-builder --mac dmg --x64",
-    "build:win": "electron-builder --win"
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "build:win": "tsc && vite build && electron-builder --win",
+    "build:mac": "tsc && vite build && electron-builder --mac",
+    "preview": "vite preview",
+    "electron:dev": "vite build && electron .",
+    "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "electron-log": "^5.1.1",
+    "electron-store": "^8.2.0",
+    "marked": "^12.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.2",
+    "highlight.js": "^11.9.0",
+    "uuid": "^9.0.1"
+  },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.67",
+    "@types/react-dom": "^18.2.22",
+    "@types/uuid": "^9.0.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "electron": "^28.2.10",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.37",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.4.2",
+    "vite": "^5.2.6",
+    "vite-plugin-electron": "^0.28.6",
+    "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
     "appId": "com.biochat.app",
@@ -24,28 +49,29 @@
       "output": "release"
     },
     "files": [
-      "src/**/*",
-      "package.json"
+      "dist/**/*",
+      "dist-electron/**/*"
     ],
     "mac": {
-      "category": "public.app-category.productivity",
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
       ],
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "category": "public.app-category.productivity"
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
-    },
-    "dmg": {
-      "writeUpdateInfo": false
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true
     }
   }
