@@ -6,11 +6,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version number'
-        required: false
-        type: string
 
 jobs:
   build:
@@ -38,14 +33,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build
-        run: |
-          npm run build:${{ matrix.platform }}
+        run: npm run build:${{ matrix.platform }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -58,7 +51,7 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -67,17 +60,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: release
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           draft: false
-          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
-          files: release/**/*.exe
+          prerelease: false
+          files: |
+            release/**/*.dmg
+            release/**/*.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
