@@ -78,7 +78,6 @@
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true
-    },
-    "publish": "never"
+    }
   }
 }
