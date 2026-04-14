@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+  ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+
 jobs:
   build:
     strategy:
@@ -44,6 +47,7 @@ jobs:
         run: npm run build:${{ matrix.platform }} -- --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
