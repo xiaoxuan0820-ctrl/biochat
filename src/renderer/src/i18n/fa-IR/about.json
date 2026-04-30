@@ -1,0 +1,22 @@
+{
+  "title": "Biochat",
+  "description": "بیوچت - پایگاه دانش هوشمند و پلتفرم چت هوش مصنوعی",
+  "website": "به مخزن Biochat مراجعه کنید",
+  "deviceInfo": {
+    "title": "اطلاعات دستگاه",
+    "platform": "سکو",
+    "arch": "معماری",
+    "cpuModel": "مدل پردازنده",
+    "totalMemory": "حافظه کل",
+    "osVersion": "نگارش سامانه عامل"
+  },
+  "disclaimerButton": "رد مسئولیت",
+  "clearMockUpdateButton": "پاک کردن به‌روزرسانی شبیه‌سازی‌شده",
+  "disclaimerTitle": "بیانیه شرایط استفاده",
+  "checkUpdateButton": "بررسی به‌روزرسانی",
+  "mockUpdateButton": "شبیه‌سازی به‌روزرسانی دانلودشده",
+  "updateChannel": "کانال به‌روزرسانی",
+  "stableChannel": "پایدار",
+  "betaChannel": "Beta",
+  "feedbackButton": "بازخورد"
+}

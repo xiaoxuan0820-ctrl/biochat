@@ -1,0 +1,22 @@
+{
+  "title": "Biochat",
+  "description": "Biochat - 智能知识库与AI对话平台",
+  "website": "访问 Biochat 仓库",
+  "disclaimerButton": "免责声明",
+  "feedbackButton": "意见反馈",
+  "disclaimerTitle": "使用条款声明",
+  "checkUpdateButton": "检查更新",
+  "mockUpdateButton": "模拟已下载更新",
+  "clearMockUpdateButton": "清除模拟更新",
+  "updateChannel": "更新渠道",
+  "stableChannel": "正式版",
+  "betaChannel": "内测版",
+  "deviceInfo": {
+    "title": "设备信息",
+    "platform": "平台",
+    "arch": "架构",
+    "cpuModel": "CPU型号",
+    "totalMemory": "总内存",
+    "osVersion": "系统版本"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Biochat",
+  "description": "Biochat - Интеллектуальная база знаний и платформа для AI-чатов",
+  "website": "Посетить репозиторий Biochat",
+  "disclaimerButton": "Отказ от ответственности",
+  "clearMockUpdateButton": "Очистить mock-обновление",
+  "disclaimerTitle": "Условия использования",
+  "checkUpdateButton": "Проверить обновления",
+  "mockUpdateButton": "Смоделировать загруженное обновление",
+  "updateChannel": "Канал обновлений",
+  "stableChannel": "Стабильный",
+  "betaChannel": "Beta",
+  "deviceInfo": {
+    "title": "Сведения об устройстве",
+    "platform": "Платформа",
+    "arch": "Архитектура",
+    "cpuModel": "Модель процессора",
+    "totalMemory": "Общий объем памяти",
+    "osVersion": "Версия системы"
+  },
+  "feedbackButton": "Обратная связь"
+}

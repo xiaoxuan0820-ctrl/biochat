@@ -1,0 +1,85 @@
+{
+  "_comment": "Biochat 品牌配置",
+  "app": {
+    "name": "biochat",
+    "productName": "Biochat",
+    "appId": "com.biochat.app",
+    "description": "Biochat - 智能知识库与AI对话平台",
+    "author": "xiaoxuan0820-ctrl",
+    "website": "https://github.com/xiaoxuan0820-ctrl/biochat",
+    "copyright": "© 2026 Biochat",
+    "executableName": "Biochat"
+  },
+  "update": {
+    "baseUrl": "https://cdn.biochat.app/upgrade/"
+  },
+  "i18n": {
+    "appTitle": {
+      "en-US": "Biochat",
+      "zh-CN": "Biochat",
+      "zh-TW": "Biochat",
+      "zh-HK": "Biochat",
+      "ja-JP": "Biochat",
+      "ko-KR": "Biochat",
+      "ru-RU": "Biochat",
+      "fr-FR": "Biochat",
+      "fa-IR": "Biochat",
+      "pt-BR": "Biochat"
+    },
+    "appDescription": {
+      "en-US": "Biochat - Intelligent Knowledge Base & AI Chat Platform",
+      "zh-CN": "Biochat - 智能知识库与AI对话平台",
+      "zh-TW": "Biochat - 智能知識庫與AI對話平台",
+      "zh-HK": "Biochat - 智能知識庫與AI對話平台",
+      "ja-JP": "Biochat - インテリジェント知識ベースとAIチャットプラットフォーム",
+      "ko-KR": "Biochat - 지능형 지식 기반 및 AI 채팅 플랫폼",
+      "ru-RU": "Biochat - Интеллектуальная база знаний и платформа для AI-чатов",
+      "fr-FR": "Biochat - Base de connaissances intelligente et plateforme de chat IA",
+      "fa-IR": "بیوچت - پایگاه دانش هوشمند و پلتفرم چت هوش مصنوعی",
+      "pt-BR": "Biochat - Base de Conhecimento Inteligente e Plataforma de Chat IA"
+    },
+    "websiteText": {
+      "en-US": "Visit Biochat GitHub",
+      "zh-CN": "访问 Biochat 仓库",
+      "zh-TW": "訪問 Biochat 倉庫",
+      "zh-HK": "訪問 Biochat 倉庫",
+      "ja-JP": "Biochat リポジトリを見る",
+      "ko-KR": "Biochat 저장소 방문",
+      "ru-RU": "Посетить репозиторий Biochat",
+      "fr-FR": "Visiter le dépôt Biochat",
+      "fa-IR": "به مخزن Biochat مراجعه کنید",
+      "pt-BR": "Visite o repositório do Biochat"
+    },
+    "welcomeTitle": {
+      "en-US": "Welcome to Biochat",
+      "zh-CN": "欢迎使用 Biochat",
+      "zh-TW": "歡迎使用 Biochat",
+      "zh-HK": "歡迎使用 Biochat",
+      "ja-JP": "Biochatへようこそ",
+      "ko-KR": "Biochat에 오신 것을 환영합니다",
+      "ru-RU": "Добро пожаловать в Biochat",
+      "fr-FR": "Bienvenue sur Biochat",
+      "fa-IR": "به Biochat خوش آمدید",
+      "pt-BR": "Bem-vindo ao Biochat"
+    },
+    "welcomeSetupDescription": {
+      "en-US": "Let's start setting up Biochat",
+      "zh-CN": "让我们开始设置 Biochat",
+      "zh-TW": "讓我們開始設定 Biochat",
+      "zh-HK": "讓我們開始設置 Biochat",
+      "ja-JP": "Biochatの設定を始めましょう",
+      "ko-KR": "Biochat 설정을 시작합시다",
+      "ru-RU": "Начнем настройку Biochat",
+      "fr-FR": "Commençons la configuration de Biochat",
+      "fa-IR": "بیایید تنظیم Biochat را شروع کنیم",
+      "pt-BR": "Vamos começar a configurar o Biochat"
+    }
+  },
+  "github": {
+    "repository": "xiaoxuan0820-ctrl/biochat"
+  },
+  "mcp": {
+    "serverDescriptionSuffix": "Biochat内置",
+    "serverDescriptionSuffixEn": "Biochat built-in"
+  }
+}

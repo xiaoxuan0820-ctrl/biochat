@@ -1,0 +1,22 @@
+{
+  "title": "Biochat",
+  "description": "Biochat - Base de Conhecimento Inteligente e Plataforma de Chat IA",
+  "website": "Visite o repositório do Biochat",
+  "deviceInfo": {
+    "title": "Informações do Dispositivo",
+    "platform": "Plataforma",
+    "arch": "Arquitetura",
+    "cpuModel": "Modelo da CPU",
+    "totalMemory": "Memória Total",
+    "osVersion": "Versão do Sistema"
+  },
+  "disclaimerButton": "Aviso Legal",
+  "clearMockUpdateButton": "Limpar atualização simulada",
+  "disclaimerTitle": "Declaração de Termos de Uso",
+  "checkUpdateButton": "Verificar Atualizações",
+  "mockUpdateButton": "Simular atualização baixada",
+  "updateChannel": "Canal de Atualização",
+  "stableChannel": "Estável",
+  "betaChannel": "Beta",
+  "feedbackButton": "Opinião"
+}

@@ -1,0 +1,444 @@
+import { embedMany, generateId, generateImage, generateText, streamText } from 'ai'
+import type {
+  ChatMessage,
+  IConfigPresenter,
+  LLM_EMBEDDING_ATTRS,
+  LLM_PROVIDER,
+  LLMResponse,
+  MCPToolDefinition,
+  ModelConfig
+} from '@shared/presenter'
+import { ApiEndpointType } from '@shared/model'
+import {
+  applyMoonshotKimiReasoningTemperaturePolicy,
+  resolveMoonshotKimiTemperaturePolicy
+} from '@shared/moonshotKimiPolicy'
+import { presenter } from '@/presenter'
+import { EMBEDDING_TEST_KEY, isNormalized } from '@/utils/vector'
+import type { LLMCoreStreamEvent } from '@shared/types/core/llm-events'
+import { mcpToolsToAISDKTools } from './toolMapper'
+import { mapMessagesToModelMessages } from './messageMapper'
+import { buildProviderOptions } from './providerOptionsMapper'
+import { type AiSdkProviderKind, createAiSdkProviderContext } from './providerFactory'
+import { adaptAiSdkStream } from './streamAdapter'
+
+export interface AiSdkRuntimeContext {
+  providerKind: AiSdkProviderKind
+  provider: LLM_PROVIDER
+  supportsOfficialAnthropicReasoning?: boolean
+  configPresenter: IConfigPresenter
+  defaultHeaders: Record<string, string>
+  buildLegacyFunctionCallPrompt?: (tools: MCPToolDefinition[]) => string
+  emitRequestTrace?: (
+    modelConfig: ModelConfig,
+    payload: {
+      endpoint: string
+      headers?: Record<string, string>
+      body?: unknown
+    }
+  ) => Promise<void>
+  buildTraceHeaders?: () => Record<string, string>
+  cleanHeaders?: boolean
+  supportsNativeTools?: (modelId: string, modelConfig: ModelConfig) => boolean
+  shouldUseImageGeneration?: (modelId: string, modelConfig: ModelConfig) => boolean
+}
+
+function resolveCapabilityProviderId(context: AiSdkRuntimeContext, modelId: string): string {
+  const resolvedProviderId = context.configPresenter.getCapabilityProviderId?.(
+    context.provider.id,
+    modelId
+  )
+
+  if (typeof resolvedProviderId === 'string' && resolvedProviderId.trim().length > 0) {
+    return resolvedProviderId
+  }
+
+  return context.provider.capabilityProviderId || context.provider.id
+}
+
+function supportsTemperatureControlRuntime(context: AiSdkRuntimeContext, modelId: string): boolean {
+  const capabilityProviderId = resolveCapabilityProviderId(context, modelId)
+  const directSupport = context.configPresenter.supportsTemperatureControl?.(
+    capabilityProviderId,
+    modelId
+  )
+  if (typeof directSupport === 'boolean') {
+    return directSupport
+  }
+
+  const directCapability = context.configPresenter.getTemperatureCapability?.(
+    capabilityProviderId,
+    modelId
+  )
+  if (typeof directCapability === 'boolean') {
+    return directCapability
+  }
+
+  return true
+}
+
+function normalizePromptValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item
+        }
+
+        if (item && typeof item === 'object' && 'text' in item && typeof item.text === 'string') {
+          return item.text
+        }
+
+        return ''
+      })
+      .filter((item) => item.trim().length > 0)
+      .join('\n')
+  }
+
+  if (value && typeof value === 'object') {
+    if ('text' in value && typeof value.text === 'string') {
+      return value.text
+    }
+
+    const stringified = String(value)
+    return stringified === '[object Object]' ? '' : stringified
+  }
+
+  return ''
+}
+
+function extractImagePrompt(messages: ChatMessage[]): string {
+  return messages
+    .map((message) => (message.role === 'user' ? normalizePromptValue(message.content) : ''))
+    .filter((content) => content.trim().length > 0)
+    .join('\n\n')
+}
+
+function resolveSupportsNativeTools(
+  context: AiSdkRuntimeContext,
+  modelId: string,
+  modelConfig: ModelConfig
+): boolean {
+  if (context.supportsNativeTools) {
+    return context.supportsNativeTools(modelId, modelConfig)
+  }
+
+  return modelConfig.functionCall === true
+}
+
+function shouldUseImageGenerationRuntime(
+  context: AiSdkRuntimeContext,
+  modelId: string,
+  modelConfig: ModelConfig
+): boolean {
+  if (context.shouldUseImageGeneration) {
+    return context.shouldUseImageGeneration(modelId, modelConfig)
+  }
+
+  return modelConfig.apiEndpoint === ApiEndpointType.Image
+}
+
+function resolveRequestTimeout(modelConfig: ModelConfig): number | undefined {
+  const timeout = modelConfig.timeout
+  if (typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout <= 0) {
+    return undefined
+  }
+  return Math.round(timeout)
+}
+
+function normalizeRuntimeModelConfig(
+  context: AiSdkRuntimeContext,
+  modelId: string,
+  modelConfig: ModelConfig
+): ModelConfig {
+  return applyMoonshotKimiReasoningTemperaturePolicy(context.provider.id, modelId, modelConfig)
+}
+
+function resolveRuntimeTemperature(
+  context: AiSdkRuntimeContext,
+  modelId: string,
+  modelConfig: ModelConfig,
+  requestedTemperature: number | undefined
+): { shouldSendTemperature: boolean; temperature: number | undefined } {
+  const fixedTemperatureKimi = resolveMoonshotKimiTemperaturePolicy(
+    context.provider.id,
+    modelId,
+    modelConfig.reasoning
+  )
+  if (fixedTemperatureKimi) {
+    return {
+      shouldSendTemperature: true,
+      temperature: fixedTemperatureKimi.temperature
+    }
+  }
+
+  return {
+    shouldSendTemperature:
+      supportsTemperatureControlRuntime(context, modelId) && requestedTemperature !== undefined,
+    temperature: requestedTemperature
+  }
+}
+
+async function buildPromptRuntime(
+  context: AiSdkRuntimeContext,
+  messages: ChatMessage[],
+  modelId: string,
+  modelConfig: ModelConfig,
+  tools: MCPToolDefinition[]
+) {
+  const supportsNativeTools = resolveSupportsNativeTools(context, modelId, modelConfig)
+  const capabilityProviderId = resolveCapabilityProviderId(context, modelId)
+  const providerContext = createAiSdkProviderContext({
+    providerKind: context.providerKind,
+    provider: context.provider,
+    configPresenter: context.configPresenter,
+    defaultHeaders: context.defaultHeaders,
+    modelId,
+    cleanHeaders: context.cleanHeaders
+  })
+  const mappedMessages = mapMessagesToModelMessages(messages, {
+    tools,
+    supportsNativeTools,
+    buildLegacyFunctionCallPrompt: context.buildLegacyFunctionCallPrompt,
+    preserveOpenAICompatibleReasoningContent: context.providerKind === 'openai-compatible'
+  })
+  const toolsMap = supportsNativeTools ? mcpToolsToAISDKTools(tools) : {}
+  const providerOptionResult = buildProviderOptions({
+    providerId: context.provider.id,
+    capabilityProviderId,
+    supportsOfficialAnthropicReasoning: context.supportsOfficialAnthropicReasoning,
+    providerOptionsKey: providerContext.providerOptionsKey,
+    apiType: providerContext.apiType,
+    modelId,
+    modelConfig,
+    tools,
+    messages: mappedMessages
+  })
+
+  return {
+    providerContext,
+    messages: providerOptionResult.messages,
+    providerOptions: providerOptionResult.providerOptions,
+    tools: toolsMap,
+    supportsNativeTools
+  }
+}
+
+function usageToLlmResponse(
+  usage:
+    | {
+        inputTokens?: number
+        outputTokens?: number
+        totalTokens?: number
+      }
+    | undefined
+): LLMResponse['totalUsage'] | undefined {
+  if (!usage) {
+    return undefined
+  }
+
+  return {
+    prompt_tokens: usage.inputTokens ?? 0,
+    completion_tokens: usage.outputTokens ?? 0,
+    total_tokens: usage.totalTokens ?? (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)
+  }
+}
+
+export async function runAiSdkGenerateText(
+  context: AiSdkRuntimeContext,
+  messages: ChatMessage[],
+  modelId: string,
+  modelConfig: ModelConfig,
+  temperature?: number,
+  maxTokens?: number
+): Promise<LLMResponse> {
+  const normalizedModelConfig = normalizeRuntimeModelConfig(context, modelId, modelConfig)
+  const runtime = await buildPromptRuntime(context, messages, modelId, normalizedModelConfig, [])
+  const { shouldSendTemperature, temperature: resolvedTemperature } = resolveRuntimeTemperature(
+    context,
+    modelId,
+    normalizedModelConfig,
+    temperature
+  )
+  const timeout = resolveRequestTimeout(normalizedModelConfig)
+  const requestBody = {
+    model: runtime.providerContext.resolvedModelId ?? modelId,
+    maxOutputTokens: maxTokens,
+    ...(shouldSendTemperature && resolvedTemperature !== undefined
+      ? { temperature: resolvedTemperature }
+      : {})
+  }
+
+  await context.emitRequestTrace?.(normalizedModelConfig, {
+    endpoint: runtime.providerContext.endpoint,
+    headers: context.buildTraceHeaders?.() ?? context.defaultHeaders,
+    body: requestBody
+  })
+
+  const result = await generateText({
+    model: runtime.providerContext.model,
+    messages: runtime.messages,
+    providerOptions: runtime.providerOptions as any,
+    ...(timeout ? { abortSignal: AbortSignal.timeout(timeout) } : {}),
+    ...(shouldSendTemperature && resolvedTemperature !== undefined
+      ? { temperature: resolvedTemperature }
+      : {}),
+    maxOutputTokens: maxTokens
+  })
+
+  return {
+    content: result.text,
+    reasoning_content: result.reasoningText,
+    totalUsage: usageToLlmResponse(result.totalUsage)
+  }
+}
+
+export async function* runAiSdkCoreStream(
+  context: AiSdkRuntimeContext,
+  messages: ChatMessage[],
+  modelId: string,
+  modelConfig: ModelConfig,
+  temperature: number,
+  maxTokens: number,
+  tools: MCPToolDefinition[]
+): AsyncGenerator<LLMCoreStreamEvent> {
+  const normalizedModelConfig = normalizeRuntimeModelConfig(context, modelId, modelConfig)
+  const timeout = resolveRequestTimeout(normalizedModelConfig)
+
+  if (shouldUseImageGenerationRuntime(context, modelId, normalizedModelConfig)) {
+    const prompt = extractImagePrompt(messages)
+
+    const providerContext = createAiSdkProviderContext({
+      providerKind: context.providerKind,
+      provider: context.provider,
+      configPresenter: context.configPresenter,
+      defaultHeaders: context.defaultHeaders,
+      modelId,
+      cleanHeaders: context.cleanHeaders
+    })
+
+    if (!providerContext.imageModel) {
+      throw new Error(`Image generation is not supported by provider ${context.provider.id}`)
+    }
+
+    await context.emitRequestTrace?.(modelConfig, {
+      endpoint: providerContext.imageEndpoint ?? providerContext.endpoint,
+      headers: context.buildTraceHeaders?.() ?? context.defaultHeaders,
+      body: {
+        model: providerContext.resolvedModelId ?? modelId,
+        prompt
+      }
+    })
+
+    const result = await generateImage({
+      model: providerContext.imageModel,
+      prompt,
+      ...(timeout ? { abortSignal: AbortSignal.timeout(timeout) } : {})
+    })
+
+    for (const image of result.images) {
+      const dataUrl = `data:${image.mediaType};base64,${image.base64}`
+      const cachedImage = await presenter.devicePresenter.cacheImage(dataUrl)
+      yield {
+        type: 'image_data',
+        image_data: {
+          data: cachedImage,
+          mimeType: image.mediaType
+        }
+      }
+    }
+
+    yield {
+      type: 'stop',
+      stop_reason: 'complete'
+    }
+    return
+  }
+
+  const runtime = await buildPromptRuntime(context, messages, modelId, normalizedModelConfig, tools)
+  const { shouldSendTemperature, temperature: resolvedTemperature } = resolveRuntimeTemperature(
+    context,
+    modelId,
+    normalizedModelConfig,
+    temperature
+  )
+  const requestBody = {
+    model: runtime.providerContext.resolvedModelId ?? modelId,
+    maxOutputTokens: maxTokens,
+    ...(shouldSendTemperature && resolvedTemperature !== undefined
+      ? { temperature: resolvedTemperature }
+      : {}),
+    tools: tools.map((tool) => tool.function.name)
+  }
+
+  await context.emitRequestTrace?.(normalizedModelConfig, {
+    endpoint: runtime.providerContext.endpoint,
+    headers: context.buildTraceHeaders?.() ?? context.defaultHeaders,
+    body: requestBody
+  })
+
+  const result = streamText({
+    model: runtime.providerContext.model,
+    messages: runtime.messages,
+    tools: runtime.tools,
+    providerOptions: runtime.providerOptions as any,
+    ...(timeout ? { abortSignal: AbortSignal.timeout(timeout) } : {}),
+    ...(shouldSendTemperature && resolvedTemperature !== undefined
+      ? { temperature: resolvedTemperature }
+      : {}),
+    maxOutputTokens: maxTokens
+  })
+
+  yield* adaptAiSdkStream(result.fullStream, {
+    supportsNativeTools: runtime.supportsNativeTools,
+    cacheImage: (data) => presenter.devicePresenter.cacheImage(data)
+  })
+}
+
+export async function runAiSdkEmbeddings(
+  context: AiSdkRuntimeContext,
+  modelId: string,
+  texts: string[]
+): Promise<number[][]> {
+  const providerContext = createAiSdkProviderContext({
+    providerKind: context.providerKind,
+    provider: context.provider,
+    configPresenter: context.configPresenter,
+    defaultHeaders: context.defaultHeaders,
+    modelId,
+    cleanHeaders: context.cleanHeaders,
+    wrapThinkReasoning: false
+  })
+
+  if (!providerContext.embeddingModel) {
+    throw new Error(`embedding is not supported by provider ${context.provider.id}`)
+  }
+
+  const result = await embedMany({
+    model: providerContext.embeddingModel,
+    values: texts
+  })
+
+  return result.embeddings
+}
+
+export async function runAiSdkDimensions(
+  context: AiSdkRuntimeContext,
+  modelId: string
+): Promise<LLM_EMBEDDING_ATTRS> {
+  const embeddings = await runAiSdkEmbeddings(context, modelId, [
+    EMBEDDING_TEST_KEY || generateId()
+  ])
+  return {
+    dimensions: embeddings[0].length,
+    normalized: isNormalized(embeddings[0])
+  }
+}

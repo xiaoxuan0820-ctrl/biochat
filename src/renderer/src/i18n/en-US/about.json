@@ -1,0 +1,22 @@
+{
+  "title": "Biochat",
+  "description": "Biochat - Intelligent Knowledge Base & AI Chat Platform",
+  "website": "Visit Biochat GitHub",
+  "deviceInfo": {
+    "title": "Device Information",
+    "platform": "Platform",
+    "arch": "Architecture",
+    "cpuModel": "CPU Model",
+    "totalMemory": "Total Memory",
+    "osVersion": "System Version"
+  },
+  "disclaimerButton": "Disclaimer",
+  "feedbackButton": "Feedback",
+  "disclaimerTitle": "Terms of Use Statement",
+  "checkUpdateButton": "Check for Updates",
+  "mockUpdateButton": "Mock Downloaded Update",
+  "clearMockUpdateButton": "Clear Mock Update",
+  "updateChannel": "Update Channel",
+  "stableChannel": "Stable",
+  "betaChannel": "Beta"
+}

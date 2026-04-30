@@ -1,0 +1,477 @@
+<template>
+  <div v-if="showProviderSkeleton" class="w-full h-full flex flex-row animate-pulse">
+    <div class="w-80 h-full border-r p-4 space-y-3">
+      <div class="h-9 rounded-md bg-muted/60"></div>
+      <div
+        v-for="index in 8"
+        :key="`provider-skeleton-${index}`"
+        class="h-10 rounded-lg bg-muted/40"
+      ></div>
+      <div class="pt-2">
+        <div class="h-10 rounded-lg bg-muted/50"></div>
+      </div>
+    </div>
+    <div class="flex-1 p-6 space-y-4">
+      <div class="h-6 w-48 rounded-md bg-muted/50"></div>
+      <div class="h-24 rounded-xl bg-muted/40"></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="h-20 rounded-xl bg-muted/40"></div>
+        <div class="h-20 rounded-xl bg-muted/40"></div>
+      </div>
+      <div class="h-72 rounded-xl bg-muted/30"></div>
+    </div>
+  </div>
+  <div v-else data-testid="settings-provider-page" class="w-full h-full flex flex-row">
+    <ScrollArea class="w-80 border-r h-full">
+      <div class="space-y-4 p-4">
+        <!-- 搜索框 -->
+        <div class="sticky top-4 z-10">
+          <div class="relative">
+            <Input
+              v-model="searchQueryBase"
+              :placeholder="t('settings.provider.search')"
+              class="h-9 pr-8 text-sm backdrop-blur-lg border-border"
+              @keydown.esc="clearSearch"
+            />
+            <!-- 搜索图标：在无内容时显示 -->
+            <Icon
+              v-if="!showClearButton"
+              icon="lucide:search"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
+            />
+            <!-- 清除按钮：在有内容时显示 -->
+            <Icon
+              v-else
+              icon="lucide:x"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground"
+              @click="clearSearch"
+            />
+          </div>
+        </div>
+        <!-- 启用的服务商区域 -->
+        <div v-if="enabledProviders.length > 0">
+          <div class="text-xs font-medium text-muted-foreground mb-2 px-2">
+            {{ t('settings.provider.enabled') }} ({{ enabledProviders.length }})
+          </div>
+          <draggable
+            v-model="enabledProviders"
+            item-key="id"
+            handle=".drag-handle"
+            class="space-y-2"
+            group="providers"
+            :move="onMoveEnabled"
+            @end="handleDragEnd"
+          >
+            <template #item="{ element: provider }">
+              <div
+                :data-provider-id="provider.id"
+                :class="[
+                  'flex flex-row hover:bg-accent items-center gap-2 rounded-lg p-2 cursor-pointer group',
+                  route.params?.providerId === provider.id ? 'bg-accent text-accent-foreground' : ''
+                ]"
+                @click="setActiveProvider(provider.id)"
+              >
+                <Icon
+                  icon="lucide:grip-vertical"
+                  class="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-move drag-handle"
+                />
+                <ModelIcon
+                  :model-id="provider.id"
+                  :custom-class="'w-4 h-4 text-muted-foreground'"
+                  :is-dark="themeStore.isDark"
+                />
+                <input
+                  v-if="editingProviderId === provider.id"
+                  ref="editInputRef"
+                  v-model="editingName"
+                  class="text-sm font-medium flex-1 min-w-0 bg-background border border-input rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-ring"
+                  :dir="languageStore.dir"
+                  @blur="saveEditingName"
+                  @keydown="handleEditKeydown"
+                  @click.stop
+                />
+                <template v-else>
+                  <span
+                    class="text-sm font-medium flex-1 min-w-0 truncate"
+                    :dir="languageStore.dir"
+                    >{{ t(provider.name) }}</span
+                  >
+                  <Icon
+                    v-if="provider.custom"
+                    icon="lucide:pencil"
+                    class="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-60 hover:opacity-100! cursor-pointer shrink-0"
+                    @click="startEditingName(provider, $event)"
+                  />
+                </template>
+                <Switch
+                  :model-value="provider.enable"
+                  @click.stop="toggleProviderStatus(provider)"
+                />
+              </div>
+            </template>
+          </draggable>
+        </div>
+
+        <!-- 禁用的服务商区域 -->
+        <div v-if="disabledProviders.length > 0">
+          <div class="text-xs font-medium text-muted-foreground mb-2 px-2">
+            {{ t('settings.provider.disabled') }} ({{ disabledProviders.length }})
+          </div>
+          <draggable
+            v-model="disabledProviders"
+            item-key="id"
+            handle=".drag-handle"
+            class="space-y-2"
+            group="providers"
+            :move="onMoveDisabled"
+            @end="handleDragEnd"
+          >
+            <template #item="{ element: provider }">
+              <div
+                :data-provider-id="provider.id"
+                :class="[
+                  'flex flex-row hover:bg-accent items-center gap-2 rounded-lg p-2 cursor-pointer group opacity-60',
+                  route.params?.providerId === provider.id ? 'bg-accent text-accent-foreground' : ''
+                ]"
+                @click="setActiveProvider(provider.id)"
+              >
+                <Icon
+                  icon="lucide:grip-vertical"
+                  class="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-move drag-handle"
+                />
+                <ModelIcon
+                  :model-id="provider.id"
+                  :custom-class="'w-4 h-4 text-muted-foreground'"
+                  :is-dark="themeStore.isDark"
+                />
+                <input
+                  v-if="editingProviderId === provider.id"
+                  ref="editInputRef"
+                  v-model="editingName"
+                  class="text-sm font-medium flex-1 min-w-0 bg-background border border-input rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-ring"
+                  :dir="languageStore.dir"
+                  @blur="saveEditingName"
+                  @keydown="handleEditKeydown"
+                  @click.stop
+                />
+                <template v-else>
+                  <span
+                    class="text-sm font-medium flex-1 min-w-0 truncate"
+                    :dir="languageStore.dir"
+                    >{{ t(provider.name) }}</span
+                  >
+                  <Icon
+                    v-if="provider.custom"
+                    icon="lucide:pencil"
+                    class="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-60 hover:opacity-100! cursor-pointer shrink-0"
+                    @click="startEditingName(provider, $event)"
+                  />
+                </template>
+                <Switch
+                  :model-value="provider.enable"
+                  @click.stop="toggleProviderStatus(provider)"
+                />
+              </div>
+            </template>
+          </draggable>
+        </div>
+
+        <div class="sticky bottom-4 z-10" :dir="languageStore.dir">
+          <Button
+            data-testid="provider-add-button"
+            variant="outline"
+            class="w-full flex flex-row items-center gap-2 rounded-lg p-2 backdrop-blur-lg cursor-pointer hover:bg-accent"
+            @click="openAddProviderDialog"
+          >
+            <Icon icon="lucide:plus" class="w-4 h-4 text-muted-foreground" />
+            <span class="text-sm font-medium">{{ t('settings.provider.addCustomProvider') }}</span>
+          </Button>
+        </div>
+      </div>
+    </ScrollArea>
+    <template v-if="activeProvider">
+      <OllamaProviderSettingsDetail
+        v-if="activeProvider.apiType === 'ollama'"
+        :key="`ollama-${activeProvider.id}`"
+        :provider="activeProvider"
+        class="flex-1"
+      />
+      <BedrockProviderSettingsDetail
+        v-else-if="activeProvider.apiType === 'aws-bedrock'"
+        :key="`bedrock-${activeProvider.id}`"
+        :provider="activeProvider as AWS_BEDROCK_PROVIDER"
+        class="flex-1"
+      />
+      <ModelProviderSettingsDetail
+        v-else
+        :key="`standard-${activeProvider.id}`"
+        :provider="activeProvider"
+        class="flex-1"
+      />
+    </template>
+    <AddCustomProviderDialog
+      v-model:open="isAddProviderDialogOpen"
+      @provider-added="handleProviderAdded"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, nextTick } from 'vue'
+import { useProviderStore } from '@/stores/providerStore'
+import { useModelStore } from '@/stores/modelStore'
+import { useRoute, useRouter } from 'vue-router'
+import { refDebounced } from '@vueuse/core'
+import ModelProviderSettingsDetail from './ModelProviderSettingsDetail.vue'
+import OllamaProviderSettingsDetail from './OllamaProviderSettingsDetail.vue'
+import BedrockProviderSettingsDetail from './BedrockProviderSettingsDetail.vue'
+import ModelIcon from '@/components/icons/ModelIcon.vue'
+import { Icon } from '@iconify/vue'
+import AddCustomProviderDialog from './AddCustomProviderDialog.vue'
+import { useI18n } from 'vue-i18n'
+import type { AWS_BEDROCK_PROVIDER, LLM_PROVIDER } from '@shared/presenter'
+import { Switch } from '@shadcn/components/ui/switch'
+import { Input } from '@shadcn/components/ui/input'
+import { Button } from '@shadcn/components/ui/button'
+import draggable from 'vuedraggable'
+import { ScrollArea } from '@shadcn/components/ui/scroll-area'
+import { useThemeStore } from '@/stores/theme'
+import { useLanguageStore } from '@/stores/language'
+import { onMounted, watch } from 'vue'
+import { useStartupWorkloadStore } from '@/stores/startupWorkloadStore'
+
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
+const languageStore = useLanguageStore()
+const providerStore = useProviderStore()
+const modelStore = useModelStore()
+const themeStore = useThemeStore()
+const startupWorkloadStore = (() => {
+  try {
+    return useStartupWorkloadStore()
+  } catch {
+    return null
+  }
+})()
+const isAddProviderDialogOpen = ref(false)
+const searchQueryBase = ref('')
+const searchQuery = refDebounced(searchQueryBase, 150)
+const showClearButton = computed(() => searchQueryBase.value.trim().length > 0)
+
+const editingProviderId = ref<string | null>(null)
+const editingName = ref('')
+const editInputRef = ref<HTMLInputElement | null>(null)
+
+const startEditingName = (provider: LLM_PROVIDER, event: Event) => {
+  event.stopPropagation()
+  editingProviderId.value = provider.id
+  editingName.value = provider.name
+  nextTick(() => {
+    editInputRef.value?.focus()
+    editInputRef.value?.select()
+  })
+}
+
+const saveEditingName = async () => {
+  if (!editingProviderId.value || !editingName.value.trim()) {
+    cancelEditingName()
+    return
+  }
+  const trimmedName = editingName.value.trim()
+  const providerId = editingProviderId.value
+  editingProviderId.value = null
+  await providerStore.updateProviderConfig(providerId, { name: trimmedName })
+}
+
+const cancelEditingName = () => {
+  editingProviderId.value = null
+  editingName.value = ''
+}
+
+const handleEditKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter') {
+    saveEditingName()
+  } else if (event.key === 'Escape') {
+    cancelEditingName()
+  }
+}
+
+const clearSearch = () => {
+  searchQueryBase.value = ''
+}
+
+const filterProviders = (providers: LLM_PROVIDER[]) => {
+  if (!searchQuery.value.trim()) {
+    return providers
+  }
+  const query = searchQuery.value.toLowerCase().trim()
+  return providers.filter(
+    (provider) =>
+      t(provider.name).toLowerCase().includes(query) ||
+      provider.id.toLowerCase().includes(query) ||
+      (provider.apiType && provider.apiType.toLowerCase().includes(query))
+  )
+}
+
+const visibleProviders = computed(() =>
+  providerStore.sortedProviders.filter((provider) => provider.id !== 'acp')
+)
+const showProviderSkeleton = computed(
+  () =>
+    (!providerStore.initialized ||
+      startupWorkloadStore?.isTaskRunning('settings.providers.summary')) &&
+    visibleProviders.value.length === 0
+)
+
+const allEnabledProviders = computed(() => visibleProviders.value.filter((p) => p.enable))
+const allDisabledProviders = computed(() => visibleProviders.value.filter((p) => !p.enable))
+
+// 分别处理启用和禁用的 providers
+const enabledProviders = computed({
+  get: () => filterProviders(allEnabledProviders.value),
+  set: (newProviders) => {
+    const isFiltered = searchQuery.value.trim().length > 0
+    if (isFiltered) {
+      const orderMap = new Map(newProviders.map((provider, index) => [provider.id, index]))
+      const reorderedEnabled = [...allEnabledProviders.value].sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? Infinity
+        const orderB = orderMap.get(b.id) ?? Infinity
+        return orderA - orderB
+      })
+      const allProviders = [...reorderedEnabled, ...allDisabledProviders.value]
+      providerStore.updateProvidersOrder(allProviders)
+    } else {
+      const allProviders = [...newProviders, ...allDisabledProviders.value]
+      providerStore.updateProvidersOrder(allProviders)
+    }
+  }
+})
+
+const disabledProviders = computed({
+  get: () => filterProviders(allDisabledProviders.value),
+  set: (newProviders) => {
+    const isFiltered = searchQuery.value.trim().length > 0
+    if (isFiltered) {
+      const orderMap = new Map(newProviders.map((provider, index) => [provider.id, index]))
+      const reorderedDisabled = [...allDisabledProviders.value].sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? Infinity
+        const orderB = orderMap.get(b.id) ?? Infinity
+        return orderA - orderB
+      })
+      const allProviders = [...allEnabledProviders.value, ...reorderedDisabled]
+      providerStore.updateProvidersOrder(allProviders)
+    } else {
+      const allProviders = [...allEnabledProviders.value, ...newProviders]
+      providerStore.updateProvidersOrder(allProviders)
+    }
+  }
+})
+
+const setActiveProvider = (providerId: string) => {
+  router.push({
+    name: 'settings-provider',
+    params: {
+      providerId
+    }
+  })
+}
+
+const scrollToProvider = (providerId: string) => {
+  const element = document.querySelector(`[data-provider-id="${providerId}"]`)
+  if (element) {
+    // 滚动到该服务商的位置
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'end'
+    })
+  }
+}
+
+const toggleProviderStatus = async (provider: LLM_PROVIDER) => {
+  const willEnable = !provider.enable
+  await providerStore.updateProviderStatus(provider.id, willEnable)
+  // 切换状态后，同时打开该服务商的详情页面
+  setActiveProvider(provider.id)
+
+  // 仅在开启服务商时滚动
+  if (willEnable) {
+    await nextTick()
+    scrollToProvider(provider.id)
+  }
+}
+
+const activeProvider = computed(() => {
+  const provider = providerStore.providers.find((p) => p.id === route.params.providerId)
+  if (provider?.id === 'acp') {
+    router.replace({ name: 'settings-acp' })
+    return null
+  }
+  return provider
+})
+
+const openAddProviderDialog = () => {
+  isAddProviderDialogOpen.value = true
+}
+
+const handleProviderAdded = (provider: LLM_PROVIDER) => {
+  // 添加成功后，自动选择新添加的provider
+  setActiveProvider(provider.id)
+}
+
+onMounted(async () => {
+  await providerStore.ensureInitialized()
+  if (!route.params.providerId && visibleProviders.value.length > 0) {
+    setActiveProvider(visibleProviders.value[0].id)
+  }
+})
+
+watch(
+  () => route.params.providerId,
+  async (providerId) => {
+    if (typeof providerId !== 'string' || providerId.length === 0) {
+      return
+    }
+
+    await modelStore.ensureProviderModelsReady(providerId)
+  },
+  { immediate: true }
+)
+
+// 处理拖拽结束事件
+const handleDragEnd = () => {
+  // 可以在这里添加额外的处理逻辑
+}
+
+// 处理启用区域的拖拽移动事件
+const onMoveEnabled = (evt: any) => {
+  const draggedProvider = evt.draggedContext.element
+  const relatedProvider = evt.relatedContext?.element
+  if (!draggedProvider || !draggedProvider.enable) {
+    return false
+  }
+  if (relatedProvider && !relatedProvider.enable) {
+    return false
+  }
+  return true
+}
+
+// 处理禁用区域的拖拽移动事件
+const onMoveDisabled = (evt: any) => {
+  const draggedProvider = evt.draggedContext.element
+  const relatedProvider = evt.relatedContext?.element
+  if (!draggedProvider || draggedProvider.enable) {
+    return false
+  }
+  if (relatedProvider && relatedProvider.enable) {
+    return false
+  }
+  return true
+}
+</script>
+
+<style scoped>
+.drag-handle {
+  touch-action: none;
+}
+</style>
