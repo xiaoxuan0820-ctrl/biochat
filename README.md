@@ -24,6 +24,8 @@
   <a href="./README.zh.md">中文</a> / <a href="./README.md">English</a> / <a href="./README.jp.md">日本語</a>
 </div>
 
+> **🏠 相关项目**: [deerflow-gui](https://github.com/xiaoxuan0820-ctrl/deerflow-gui) — DeerFlow 2.0 SuperAgent Framework 桌面客户端
+
 ## 📑 Table of Contents
 
 - [📑 Table of Contents](#-table-of-contents)
